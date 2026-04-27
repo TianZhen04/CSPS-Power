@@ -4,6 +4,10 @@
 #include <Arduino.h>
 #include <stdint.h>
 
+// 要更改
+static constexpr int kPmbusSclPin = 4;
+static constexpr int kPmbusSdaPin = 5;
+
 struct pmbus_data_t
 {
 	float fan_speed_rpm;

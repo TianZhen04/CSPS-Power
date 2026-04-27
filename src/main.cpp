@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <Esp.h>
 #include <beep.h>
+#include <ble_server.h>
 #include <esp_chip_info.h>
 #include <esp_flash.h>
 #include <esp_heap_caps.h>
@@ -8,6 +9,7 @@
 #include <esp_system.h>
 #include <display.h>
 #include <led.h>
+#include <ntc_temp.h>
 #include <power_ctrl.h>
 #include <pmbus.h>
 #include <ui.h>
@@ -69,24 +71,30 @@ static void pmbus_setup_print_info()
 void setup()
 {
   Serial.begin(115200);
-  delay(1500);
+  delay(200);
   const esp_reset_reason_t reset_reason = esp_reset_reason();
   Serial.printf("Reset reason: %s (%d)\n", reset_reason_to_string(reset_reason), static_cast<int>(reset_reason));
 
-  pmbus_init();
-  pmbus_get_setup_info(&g_pmbus_setup_info);
-  pmbus_setup_print_info();
   beep_init();
   Serial.printf("beep init success\n");
   led_init();
   Serial.printf("led init success\n");
   power_ctrl_init();
   Serial.printf("power control init success\n");
+  ntc_temp_init();
+  Serial.printf("ntc temp init success (ADC IO%d)\n", static_cast<int>(kNtcAdcPin));
   display_init();
   Serial.printf("display init success\n");
+  pmbus_init();
+  pmbus_get_setup_info(&g_pmbus_setup_info);
+  pmbus_setup_print_info();
   wifi_portal_init();
   Serial.printf("wifi init success\n");
   wifi_portal_set_setup_info(&g_pmbus_setup_info);
+
+  ble_server_set_target_name("CSPS-Power-BLE");
+  ble_server_init();
+  Serial.printf("ble init success\n");
 }
 
 void loop()
@@ -101,6 +109,12 @@ void loop()
       g_pmbus_data = pmbus_data_t{};
     }
 
+    float ntc_temp_c = 0.0f;
+    if (ntc_temp_read_c(&ntc_temp_c))
+    {
+      ui_set_board_temp(ntc_temp_c);
+    }
+
     ui_update_power_data(&g_pmbus_data);
     wifi_portal_set_latest_data(&g_pmbus_data);
   }
@@ -110,5 +124,6 @@ void loop()
   ui_update_work_time(elapsed_seconds);
 
   wifi_portal_task();
+  ble_server_task();
   display_task_handler();
 }

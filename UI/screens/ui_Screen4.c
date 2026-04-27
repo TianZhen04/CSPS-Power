@@ -12,7 +12,9 @@ lv_obj_t * ui_Panel17 = NULL;
 lv_obj_t * ui_Label45 = NULL;
 lv_obj_t * ui_forcedSwitch = NULL;
 lv_obj_t * ui_Label1 = NULL;
-lv_obj_t * ui_forcedSwitch1 = NULL;
+lv_obj_t * ui_beepSwitch = NULL;
+lv_obj_t * ui_Label2 = NULL;
+lv_obj_t * ui_blueToothSwitch = NULL;
 lv_obj_t * ui_return3 = NULL;
 lv_obj_t * ui_Label38 = NULL;
 // event funtions
@@ -91,12 +93,30 @@ void ui_Screen4_screen_init(void)
     lv_obj_set_style_text_opa(ui_Label1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_Label1, &ui_font_bold16, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_forcedSwitch1 = lv_switch_create(ui_Panel17);
-    lv_obj_set_width(ui_forcedSwitch1, 50);
-    lv_obj_set_height(ui_forcedSwitch1, 25);
-    lv_obj_set_x(ui_forcedSwitch1, 56);
-    lv_obj_set_y(ui_forcedSwitch1, -30);
-    lv_obj_set_align(ui_forcedSwitch1, LV_ALIGN_CENTER);
+    ui_beepSwitch = lv_switch_create(ui_Panel17);
+    lv_obj_set_width(ui_beepSwitch, 50);
+    lv_obj_set_height(ui_beepSwitch, 25);
+    lv_obj_set_x(ui_beepSwitch, 56);
+    lv_obj_set_y(ui_beepSwitch, -30);
+    lv_obj_set_align(ui_beepSwitch, LV_ALIGN_CENTER);
+
+    ui_Label2 = lv_label_create(ui_Panel17);
+    lv_obj_set_width(ui_Label2, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_Label2, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_Label2, -47);
+    lv_obj_set_y(ui_Label2, 0);
+    lv_obj_set_align(ui_Label2, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_Label2, "蓝牙开关");
+    lv_obj_set_style_text_color(ui_Label2, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_Label2, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_Label2, &ui_font_bold16, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_blueToothSwitch = lv_switch_create(ui_Panel17);
+    lv_obj_set_width(ui_blueToothSwitch, 50);
+    lv_obj_set_height(ui_blueToothSwitch, 25);
+    lv_obj_set_x(ui_blueToothSwitch, 56);
+    lv_obj_set_y(ui_blueToothSwitch, 0);
+    lv_obj_set_align(ui_blueToothSwitch, LV_ALIGN_CENTER);
 
     ui_return3 = lv_obj_create(ui_Screen4);
     lv_obj_set_width(ui_return3, 230);
@@ -135,7 +155,9 @@ void ui_Screen4_screen_destroy(void)
     ui_Label45 = NULL;
     ui_forcedSwitch = NULL;
     ui_Label1 = NULL;
-    ui_forcedSwitch1 = NULL;
+    ui_beepSwitch = NULL;
+    ui_Label2 = NULL;
+    ui_blueToothSwitch = NULL;
     ui_return3 = NULL;
     ui_Label38 = NULL;
 

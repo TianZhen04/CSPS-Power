@@ -20,7 +20,9 @@ extern lv_obj_t * ui_Panel17;
 extern lv_obj_t * ui_Label45;
 extern lv_obj_t * ui_forcedSwitch;
 extern lv_obj_t * ui_Label1;
-extern lv_obj_t * ui_forcedSwitch1;
+extern lv_obj_t * ui_beepSwitch;
+extern lv_obj_t * ui_Label2;
+extern lv_obj_t * ui_blueToothSwitch;
 extern lv_obj_t * ui_return3;
 extern lv_obj_t * ui_Label38;
 // CUSTOM VARIABLES

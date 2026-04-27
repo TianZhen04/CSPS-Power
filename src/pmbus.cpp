@@ -2,8 +2,6 @@
 #include <Wire.h>
 #include <pmbus.h>
 
-static constexpr int kPmbusSclPin = 42;
-static constexpr int kPmbusSdaPin = 41;
 static constexpr uint32_t kPmbusI2cFreqHz = 100000;
 static constexpr uint8_t kPmbusAddr8Bit = 0xBE;
 static constexpr uint8_t kPmbusAddr7Bit = static_cast<uint8_t>(kPmbusAddr8Bit >> 1);

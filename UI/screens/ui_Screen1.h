@@ -28,9 +28,9 @@ extern lv_obj_t * ui_Image1;
 extern lv_obj_t * ui_setting;
 extern lv_obj_t * ui_Label10;
 extern lv_obj_t * ui_Panel4;
-extern lv_obj_t * ui_temp;
+extern lv_obj_t * ui_tempBoard;
 extern lv_obj_t * ui_fanSpeed;
-extern lv_obj_t * ui_temp1;
+extern lv_obj_t * ui_sheshidu1;
 extern lv_obj_t * ui_PSON;
 extern lv_obj_t * ui_runTime;
 extern lv_obj_t * ui_PSONSwitch;
@@ -47,6 +47,11 @@ extern lv_obj_t * ui_Label9;
 extern lv_obj_t * ui_outputPower;
 extern lv_obj_t * ui_Panel13;
 extern lv_obj_t * ui_effi;
+extern lv_obj_t * ui_Panel14;
+extern lv_obj_t * ui_temp1;
+extern lv_obj_t * ui_temp2;
+extern lv_obj_t * ui_sheshidu2;
+extern lv_obj_t * ui_sheshidu3;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus

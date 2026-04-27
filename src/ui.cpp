@@ -2,6 +2,8 @@
 #include <Esp.h>
 #include <string.h>
 #include <key.h>
+#include <ble_server.h>
+#include <beep.h>
 #include <display.h>
 #include <power_ctrl.h>
 #include <wifi_portal.h>
@@ -25,8 +27,11 @@ static bool g_screen3_ap_prompt = false;
 static bool g_screen3_cleared = false;
 static bool g_syncing_pson_switch = false;
 static bool g_syncing_forced_switch = false;
+static bool g_syncing_beep_switch = false;
+static bool g_syncing_bluetooth_switch = false;
 static lv_obj_t *g_force_off_popup = NULL;
 static lv_timer_t *g_force_off_popup_timer = NULL;
+static float g_board_temp_c = 0.0f;
 
 static void set_label_text_if_changed(lv_obj_t *label, const char *text)
 {
@@ -42,6 +47,22 @@ static void set_label_text_if_changed(lv_obj_t *label, const char *text)
 	}
 
 	lv_label_set_text(label, text);
+}
+
+static void set_bg_color_if_changed(lv_obj_t *obj, lv_color_t color)
+{
+	if (obj == NULL)
+	{
+		return;
+	}
+
+	const lv_color_t current = lv_obj_get_style_bg_color(obj, LV_PART_MAIN);
+	if (current.full == color.full)
+	{
+		return;
+	}
+
+	lv_obj_set_style_bg_color(obj, color, LV_PART_MAIN | LV_STATE_DEFAULT);
 }
 
 static void update_screen2_rom_info()
@@ -151,6 +172,46 @@ static void update_screen3_wifi_info()
 	{
 		return;
 	}
+
+	set_label_text_if_changed(ui_Label25, "UNKNOWN");
+
+	String ssid_text = "UNKNOWN";
+	String ip_text = "UNKNOWN";
+	const char *state_text = "DISCONNECTED";
+	lv_color_t panel_color = lv_palette_main(LV_PALETTE_RED);
+
+	if (wifi_portal_sta_connected())
+	{
+		ssid_text = wifi_portal_get_sta_ssid();
+		ip_text = wifi_portal_get_sta_ip();
+		state_text = "CONNECTED";
+		panel_color = lv_palette_main(LV_PALETTE_GREEN);
+	}
+	else if (g_screen3_cleared)
+	{
+		state_text = "CLEARED";
+		panel_color = lv_palette_main(LV_PALETTE_GREY);
+	}
+	else if (g_screen3_ap_prompt)
+	{
+		ssid_text = wifi_portal_get_ap_ssid();
+		ip_text = wifi_portal_get_ap_ip();
+		state_text = "CONNECT TO AP";
+		panel_color = lv_palette_main(LV_PALETTE_ORANGE);
+	}
+	else if (!wifi_portal_has_sta_config() && wifi_portal_ap_active())
+	{
+		ssid_text = wifi_portal_get_ap_ssid();
+		ip_text = wifi_portal_get_ap_ip();
+		state_text = "AP READY";
+		panel_color = lv_palette_main(LV_PALETTE_ORANGE);
+	}
+
+	set_label_text_if_changed(ui_Label20, ssid_text.c_str());
+	set_label_text_if_changed(ui_Label24, ip_text.c_str());
+	set_label_text_if_changed(ui_wifiState, state_text);
+	set_bg_color_if_changed(ui_Panel5, panel_color);
+	return;
 
 	// TIME per requirement: show unknown in Wi-Fi setup workflow.
 	lv_label_set_text(ui_Label25, "未知");
@@ -468,8 +529,15 @@ static void sync_pson_switch_from_power_ctrl()
 		return;
 	}
 
+	const bool should_check = power_ctrl_software_enabled();
+	const bool is_checked = lv_obj_has_state(ui_PSONSwitch, LV_STATE_CHECKED);
+	if (should_check == is_checked)
+	{
+		return;
+	}
+
 	g_syncing_pson_switch = true;
-	if (power_ctrl_software_enabled())
+	if (should_check)
 	{
 		lv_obj_add_state(ui_PSONSwitch, LV_STATE_CHECKED);
 	}
@@ -487,16 +555,75 @@ static void sync_forced_switch_from_power_ctrl()
 		return;
 	}
 
-	g_syncing_forced_switch = true;
-	if (power_ctrl_force_enabled())
+	const bool should_check = !power_ctrl_force_enabled();
+	const bool is_checked = lv_obj_has_state(ui_forcedSwitch, LV_STATE_CHECKED);
+	if (should_check == is_checked)
 	{
-		lv_obj_clear_state(ui_forcedSwitch, LV_STATE_CHECKED);
+		return;
 	}
-	else
+
+	g_syncing_forced_switch = true;
+	if (should_check)
 	{
 		lv_obj_add_state(ui_forcedSwitch, LV_STATE_CHECKED);
 	}
+	else
+	{
+		lv_obj_clear_state(ui_forcedSwitch, LV_STATE_CHECKED);
+	}
 	g_syncing_forced_switch = false;
+}
+
+static void sync_bluetooth_switch_from_ble()
+{
+	if (ui_blueToothSwitch == NULL)
+	{
+		return;
+	}
+
+	const bool should_check = ble_server_enabled();
+	const bool is_checked = lv_obj_has_state(ui_blueToothSwitch, LV_STATE_CHECKED);
+	if (should_check == is_checked)
+	{
+		return;
+	}
+
+	g_syncing_bluetooth_switch = true;
+	if (should_check)
+	{
+		lv_obj_add_state(ui_blueToothSwitch, LV_STATE_CHECKED);
+	}
+	else
+	{
+		lv_obj_clear_state(ui_blueToothSwitch, LV_STATE_CHECKED);
+	}
+	g_syncing_bluetooth_switch = false;
+}
+
+static void sync_beep_switch_from_beep()
+{
+	if (ui_beepSwitch == NULL)
+	{
+		return;
+	}
+
+	const bool should_check = beep_enabled();
+	const bool is_checked = lv_obj_has_state(ui_beepSwitch, LV_STATE_CHECKED);
+	if (should_check == is_checked)
+	{
+		return;
+	}
+
+	g_syncing_beep_switch = true;
+	if (should_check)
+	{
+		lv_obj_add_state(ui_beepSwitch, LV_STATE_CHECKED);
+	}
+	else
+	{
+		lv_obj_clear_state(ui_beepSwitch, LV_STATE_CHECKED);
+	}
+	g_syncing_beep_switch = false;
 }
 
 static void on_pson_switch_changed(lv_event_t *e)
@@ -529,6 +656,28 @@ static void on_forced_switch_changed(lv_event_t *e)
 	const bool forced_off = lv_obj_has_state(ui_forcedSwitch, LV_STATE_CHECKED);
 	power_ctrl_set_force_enabled(!forced_off);
 	sync_pson_switch_from_power_ctrl();
+}
+
+static void on_bluetooth_switch_changed(lv_event_t *e)
+{
+	if (lv_event_get_code(e) != LV_EVENT_VALUE_CHANGED || ui_blueToothSwitch == NULL || g_syncing_bluetooth_switch)
+	{
+		return;
+	}
+
+	const bool enabled = lv_obj_has_state(ui_blueToothSwitch, LV_STATE_CHECKED);
+	ble_server_set_enabled(enabled);
+}
+
+static void on_beep_switch_changed(lv_event_t *e)
+{
+	if (lv_event_get_code(e) != LV_EVENT_VALUE_CHANGED || ui_beepSwitch == NULL || g_syncing_beep_switch)
+	{
+		return;
+	}
+
+	const bool enabled = lv_obj_has_state(ui_beepSwitch, LV_STATE_CHECKED);
+	beep_set_enabled(enabled);
 }
 
 void ui_init()
@@ -590,6 +739,8 @@ void ui_init()
 
 	/* Screen4 control group: force switch + return. */
 	add_obj_to_group(g_screen4_group, ui_forcedSwitch);
+	add_obj_to_group(g_screen4_group, ui_beepSwitch);
+	add_obj_to_group(g_screen4_group, ui_blueToothSwitch);
 	add_obj_to_group(g_screen4_group, ui_return3);
 
 	if (ui_setting != NULL)
@@ -650,6 +801,18 @@ void ui_init()
 		lv_obj_add_event_cb(ui_forcedSwitch, on_forced_switch_changed, LV_EVENT_VALUE_CHANGED, NULL);
 	}
 
+	if (ui_beepSwitch != NULL)
+	{
+		sync_beep_switch_from_beep();
+		lv_obj_add_event_cb(ui_beepSwitch, on_beep_switch_changed, LV_EVENT_VALUE_CHANGED, NULL);
+	}
+
+	if (ui_blueToothSwitch != NULL)
+	{
+		sync_bluetooth_switch_from_ble();
+		lv_obj_add_event_cb(ui_blueToothSwitch, on_bluetooth_switch_changed, LV_EVENT_VALUE_CHANGED, NULL);
+	}
+
 	if (ui_screenAdd != NULL)
 	{
 		lv_obj_add_event_cb(ui_screenAdd, on_rotate_add, LV_EVENT_CLICKED, NULL);
@@ -692,6 +855,8 @@ void ui_update_work_time(uint32_t seconds)
 
 	sync_pson_switch_from_power_ctrl();
 	sync_forced_switch_from_power_ctrl();
+	sync_beep_switch_from_beep();
+	sync_bluetooth_switch_from_ble();
 	const bool ps_on = power_ctrl_output_enabled();
 	update_screen2_rom_info();
 	if (lv_scr_act() == ui_Screen3)
@@ -779,18 +944,10 @@ void ui_update_power_data(const pmbus_data_t *data)
 
 	if (ui_inputVoltage == NULL || ui_inputCurrent == NULL || ui_inputPower == NULL ||
 			ui_outputVoltage == NULL || ui_outputCurrent == NULL || ui_outputPower == NULL ||
-			ui_temp == NULL || ui_fanSpeed == NULL )
+			ui_tempBoard == NULL || ui_temp1 == NULL || ui_temp2 == NULL || ui_fanSpeed == NULL )
 	{
 		return;
 	}
-
-	pmbus_data_t display_data = *data;
-	if (display_data.temp2_c > display_data.temp1_c)
-	{
-		display_data.temp1_c = display_data.temp2_c;
-	}
-
-	data = &display_data;
 	char buf[32];
 
 	lv_snprintf(buf, sizeof(buf), "%05.1fV", static_cast<double>(data->voltage_in_v));
@@ -814,13 +971,24 @@ void ui_update_power_data(const pmbus_data_t *data)
 	lv_snprintf(buf, sizeof(buf), "效率:%05.2f%%", static_cast<double>(data->efficiency_percent));
 	lv_label_set_text(ui_effi, buf);
 
-	lv_snprintf(buf, sizeof(buf), "温度:%05.2f", static_cast<double>(data->temp1_c));
-	lv_label_set_text(ui_temp, buf);
+	lv_snprintf(buf, sizeof(buf), "板温:%05.2f", static_cast<double>(g_board_temp_c));
+	lv_label_set_text(ui_tempBoard, buf);
+
+	lv_snprintf(buf, sizeof(buf), "温度1:%05.2f", static_cast<double>(data->temp1_c));
+	lv_label_set_text(ui_temp1, buf);
+
+	lv_snprintf(buf, sizeof(buf), "温度2:%05.2f", static_cast<double>(data->temp2_c));
+	lv_label_set_text(ui_temp2, buf);
 
 	lv_snprintf(buf, sizeof(buf), "风速:%.0fRpm", static_cast<double>(data->fan_speed_rpm));
 	lv_label_set_text(ui_fanSpeed, buf);
 
 
+}
+
+void ui_set_board_temp(float temp_c)
+{
+	g_board_temp_c = temp_c;
 }
 
 lv_group_t *ui_get_input_group()

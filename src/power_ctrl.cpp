@@ -3,16 +3,6 @@
 
 namespace
 {
-#ifndef POWER_FORCE_SWITCH_PIN
-#define POWER_FORCE_SWITCH_PIN 38
-#endif
-
-#ifndef POWER_SOFTWARE_SWITCH_PIN
-#define POWER_SOFTWARE_SWITCH_PIN 8
-#endif
-
-static constexpr uint8_t kPowerForceSwitchPin = POWER_FORCE_SWITCH_PIN;
-static constexpr uint8_t kPowerSoftwareSwitchPin = POWER_SOFTWARE_SWITCH_PIN;
 static constexpr uint8_t kForceSwitchOnLevel = HIGH;
 static constexpr uint8_t kForceSwitchOffLevel = LOW;
 static constexpr const char *kPowerPrefsNamespace = "power_cfg";
@@ -44,7 +34,7 @@ void apply_output_state()
   // PS_ON is active low. LOW pulls the open-drain output down to enable power,
   // HIGH releases the line and lets the external pull-up turn power off.
   const bool output_on = g_software_enabled && g_force_enabled;
-  digitalWrite(kPowerSoftwareSwitchPin, output_on ? LOW : HIGH);
+  digitalWrite(POWER_SOFTWARE_SWITCH_PIN, output_on ? LOW : HIGH);
 }
 
 void apply_force_state()
@@ -54,7 +44,7 @@ void apply_force_state()
     return;
   }
 
-  digitalWrite(kPowerForceSwitchPin, g_force_enabled ? kForceSwitchOnLevel : kForceSwitchOffLevel);
+  digitalWrite(POWER_FORCE_SWITCH_PIN, g_force_enabled ? kForceSwitchOnLevel : kForceSwitchOffLevel);
 }
 
 void load_force_state()
@@ -85,21 +75,21 @@ void power_ctrl_init()
   load_force_state();
   g_software_enabled = false;
 
-  if (pin_reserved_by_memory_bus(kPowerForceSwitchPin) ||
-      pin_reserved_by_memory_bus(kPowerSoftwareSwitchPin))
+  if (pin_reserved_by_memory_bus(POWER_FORCE_SWITCH_PIN) ||
+      pin_reserved_by_memory_bus(POWER_SOFTWARE_SWITCH_PIN))
   {
     g_hw_available = false;
     Serial.printf("power control disabled: GPIO%u/GPIO%u reserved by flash/psram bus on this ESP32-S3 target\n",
-                  static_cast<unsigned>(kPowerSoftwareSwitchPin),
-                  static_cast<unsigned>(kPowerForceSwitchPin));
+                  static_cast<unsigned>(POWER_SOFTWARE_SWITCH_PIN),
+                  static_cast<unsigned>(POWER_FORCE_SWITCH_PIN));
     return;
   }
 
-  pinMode(kPowerForceSwitchPin, OUTPUT);
+  pinMode(POWER_FORCE_SWITCH_PIN, OUTPUT);
   apply_force_state();
 
-  pinMode(kPowerSoftwareSwitchPin, OUTPUT_OPEN_DRAIN);
-  digitalWrite(kPowerSoftwareSwitchPin, HIGH);
+  pinMode(POWER_SOFTWARE_SWITCH_PIN, OUTPUT_OPEN_DRAIN);
+  digitalWrite(POWER_SOFTWARE_SWITCH_PIN, HIGH);
   apply_output_state();
 }
 

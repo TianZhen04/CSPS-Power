@@ -2,17 +2,6 @@
 
 namespace
 {
-struct LedPwmConfig
-{
-  uint8_t pin;
-  uint8_t channel;
-};
-
-static constexpr LedPwmConfig kLedConfigs[] = {
-  {15, 1},
-  {16, 2},
-};
-
 static constexpr uint32_t kLedPwmFreqHz = 5000;
 static constexpr uint8_t kLedPwmResolutionBits = 8;
 

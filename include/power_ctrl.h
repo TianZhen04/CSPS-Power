@@ -3,6 +3,14 @@
 
 #include <Arduino.h>
 
+#ifndef POWER_FORCE_SWITCH_PIN
+#define POWER_FORCE_SWITCH_PIN 38
+#endif
+
+#ifndef POWER_SOFTWARE_SWITCH_PIN
+#define POWER_SOFTWARE_SWITCH_PIN 8
+#endif
+
 void power_ctrl_init();
 
 void power_ctrl_set_software_enabled(bool enabled);
