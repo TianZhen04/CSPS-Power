@@ -36,6 +36,7 @@ void pmbus_init();
 uint8_t pmbus_address_7bit();
 bool pmbus_probe();
 bool pmbus_read_u16(uint8_t reg, uint16_t *value);
+bool pmbus_write_u16(uint8_t reg, uint16_t value);
 
 bool pmbus_read_rom_byte(uint8_t addr, uint8_t *value);
 String pmbus_get_rom(uint8_t addr, uint8_t len);
@@ -58,6 +59,7 @@ float pmbus_get_temp1();
 float pmbus_get_temp2();
 uint16_t pmbus_get_fan_rpm();
 uint32_t pmbus_get_run_time();
+bool pmbus_set_fan_rpm(uint16_t rpm);
 bool pmbus_update_data(struct pmbus_data_t *data);
 
 #endif

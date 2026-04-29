@@ -79,6 +79,29 @@ bool pmbus_probe()
   return Wire.endTransmission() == 0;
 }
 
+static bool pmbus_write_u16_csps(uint8_t reg, uint16_t value)
+{
+  const uint8_t lo = static_cast<uint8_t>(value & 0xFFU);
+  const uint8_t hi = static_cast<uint8_t>((value >> 8) & 0xFFU);
+  const uint16_t sum = static_cast<uint16_t>(kPmbusAddr7Bit << 1) +
+                       static_cast<uint16_t>(reg) +
+                       static_cast<uint16_t>(lo) +
+                       static_cast<uint16_t>(hi);
+  const uint8_t reg_cs = twos_complement_checksum(sum);
+
+  Wire.beginTransmission(kPmbusAddr7Bit);
+  Wire.write(reg);
+  Wire.write(lo);
+  Wire.write(hi);
+  Wire.write(reg_cs);
+  return Wire.endTransmission() == 0;
+}
+
+bool pmbus_write_u16(uint8_t reg, uint16_t value)
+{
+  return pmbus_write_u16_csps(reg, value);
+}
+
 bool pmbus_read_u16(uint8_t reg, uint16_t *value)
 {
   if (value == nullptr)
@@ -242,6 +265,11 @@ uint16_t pmbus_get_fan_rpm()
 uint32_t pmbus_get_run_time()
 {
   return static_cast<uint32_t>(pmbus_read_u16_or_zero(0x30));
+}
+
+bool pmbus_set_fan_rpm(uint16_t rpm)
+{
+  return pmbus_write_u16(0x40, rpm);
 }
 
 bool pmbus_update_data(struct pmbus_data_t *data)

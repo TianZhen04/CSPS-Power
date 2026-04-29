@@ -14,6 +14,7 @@
 #include <pmbus.h>
 #include <ui.h>
 #include <wifi_portal.h>
+#include <espnow_bridge.h>
 
 static pmbus_data_t g_pmbus_data = {
   0.0f,  // fan_speed_rpm
@@ -92,6 +93,9 @@ void setup()
   Serial.printf("wifi init success\n");
   wifi_portal_set_setup_info(&g_pmbus_setup_info);
 
+  espnow_bridge_init();
+  Serial.printf("espnow bridge init success\n");
+
   ble_server_set_target_name("CSPS-Power-BLE");
   ble_server_init();
   Serial.printf("ble init success\n");
@@ -117,6 +121,7 @@ void loop()
 
     ui_update_power_data(&g_pmbus_data);
     wifi_portal_set_latest_data(&g_pmbus_data);
+    wifi_portal_set_c3_data(espnow_bridge_get_latest_data());
   }
 
   static uint32_t start_ms = millis();
@@ -124,6 +129,7 @@ void loop()
   ui_update_work_time(elapsed_seconds);
 
   wifi_portal_task();
+  espnow_bridge_task();
   ble_server_task();
   display_task_handler();
 }
