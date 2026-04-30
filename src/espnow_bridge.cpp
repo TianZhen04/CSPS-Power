@@ -81,7 +81,7 @@ static void try_init_espnow()
   std::memset(peer_info.peer_addr, 0xFF, 6);
   peer_info.channel = 0;
   peer_info.encrypt = false;
-  peer_info.ifidx   = ESP_IF_WIFI_AP;
+  peer_info.ifidx   = WIFI_IF_AP;
 
   if (esp_now_add_peer(&peer_info) != ESP_OK)
   {

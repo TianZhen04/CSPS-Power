@@ -6,7 +6,8 @@
       "Bash(ffmpeg -i \"e:\\\\CSPS Power\\\\html_preview\\\\上位机.png\" \"e:\\\\CSPS Power\\\\html_preview\\\\上位机.jpg\" -y)",
       "Bash(python3 -c \"from PIL import Image; img = Image.open\\(r'e:\\\\CSPS Power\\\\html_preview\\\\上位机.png'\\); img.save\\(r'e:\\\\CSPS Power\\\\html_preview\\\\上位机.jpg', 'JPEG'\\); print\\('done'\\)\")",
       "Bash(python -c \"from PIL import Image; img = Image.open\\(r'e:\\\\CSPS Power\\\\html_preview\\\\上位机.png'\\); img.save\\(r'e:\\\\CSPS Power\\\\html_preview\\\\上位机.jpg', 'JPEG'\\); print\\('done'\\)\")",
-      "Bash(start \"\" \"e:\\\\CSPS Power\\\\html_preview\\\\portal.html\")"
+      "Bash(start \"\" \"e:\\\\CSPS Power\\\\html_preview\\\\portal.html\")",
+      "WebSearch"
     ]
   }
 }
