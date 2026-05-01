@@ -161,8 +161,103 @@ void beep_play_power_off()
   start_melody(kMelodyPowerOff, sizeof(kMelodyPowerOff) / sizeof(kMelodyPowerOff[0]));
 }
 
+static constexpr beep_note_t kMelodyShutdownAlert[] = {
+  {800, 100},
+  {0, 60},
+  {800, 100},
+  {0, 60},
+  {800, 100},
+  {0, 60},
+  {600, 150},
+  {0, 100},
+  {600, 150},
+  {0, 100},
+  {400, 300},
+};
+
+void beep_play_shutdown_alert()
+{
+  start_melody(kMelodyShutdownAlert, sizeof(kMelodyShutdownAlert) / sizeof(kMelodyShutdownAlert[0]));
+}
+
+// ── Warning beep (continuous, managed by beep_task) ──
+static bool g_warning_beep_active = false;
+static uint32_t g_warning_beep_next_ms = 0;
+static bool g_warning_beep_on = false;
+static uint8_t g_warning_beep_phase = 0;  // 0=beep1, 1=silence, 2=beep2, 3=longer silence
+
+void beep_set_warning_active(bool active)
+{
+  if (active == g_warning_beep_active)
+  {
+    return;
+  }
+
+  g_warning_beep_active = active;
+  if (!active)
+  {
+    beep_stop();
+    g_warning_beep_on = false;
+    g_warning_beep_phase = 0;
+  }
+  else
+  {
+    g_warning_beep_next_ms = millis();
+    g_warning_beep_phase = 0;
+    g_warning_beep_on = false;
+  }
+}
+
+static void beep_warning_tick()
+{
+  if (!g_warning_beep_active)
+  {
+    return;
+  }
+
+  // Don't interfere with a playing melody
+  if (g_melody_playing)
+  {
+    return;
+  }
+
+  const uint32_t now_ms = millis();
+  if (now_ms < g_warning_beep_next_ms)
+  {
+    return;
+  }
+
+  switch (g_warning_beep_phase)
+  {
+  case 0:  // short beep
+    beep_start(1000, 64);
+    g_warning_beep_next_ms = now_ms + 120;
+    g_warning_beep_phase = 1;
+    break;
+  case 1:  // short silence
+    beep_stop();
+    g_warning_beep_next_ms = now_ms + 80;
+    g_warning_beep_phase = 2;
+    break;
+  case 2:  // second short beep
+    beep_start(1000, 64);
+    g_warning_beep_next_ms = now_ms + 120;
+    g_warning_beep_phase = 3;
+    break;
+  case 3:  // longer silence before repeat
+  default:
+    beep_stop();
+    g_warning_beep_next_ms = now_ms + 700;
+    g_warning_beep_phase = 0;
+    break;
+  }
+}
+
 void beep_task()
 {
+  // Warning beep runs independently of melodies
+  beep_warning_tick();
+
   if (!g_melody_playing)
   {
     return;

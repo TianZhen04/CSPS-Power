@@ -11,4 +11,10 @@ void ui_set_board_temp(float temp_c);
 void ui_update_power_data(const pmbus_data_t *data);
 lv_group_t *ui_get_input_group();
 
+void ui_show_shutdown_popup(const char *reason);
+void ui_dismiss_shutdown_popup();
+void ui_show_warning_popup(const char *reason);
+void ui_set_warning_icon_visible(bool visible);
+void ui_warning_task();
+
 #endif

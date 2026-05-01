@@ -30,6 +30,9 @@ static pmbus_data_t g_pmbus_data = {
 };
 static pmbus_setup_info_t g_pmbus_setup_info = {};
 
+static bool g_shutdown_popup_shown = false;
+static uint16_t g_warning_status = 0;
+
 static const char *reset_reason_to_string(esp_reset_reason_t reason)
 {
   switch (reason)
@@ -122,12 +125,72 @@ void loop()
     ui_update_power_data(&g_pmbus_data);
     wifi_portal_set_latest_data(&g_pmbus_data);
     wifi_portal_set_c3_data(espnow_bridge_get_latest_data());
+
+    // ── Shutdown status (0x04) ──
+    const uint16_t shutdown_raw = pmbus_read_shutdown_status();
+    if (shutdown_raw != 0 && !g_shutdown_popup_shown)
+    {
+      pmbus_shutdown_reason_t reason;
+      pmbus_decode_shutdown_status(shutdown_raw, &reason);
+      const char *reason_str = pmbus_get_shutdown_reason_string(&reason);
+      ui_show_shutdown_popup(reason_str);
+      g_shutdown_popup_shown = true;
+      beep_play_shutdown_alert();
+      Serial.printf("Power shutdown detected: 0x%04X (%s)\n", shutdown_raw, reason_str);
+    }
+
+    // ── Warning status (0x06) ──
+    const uint16_t warning_raw = pmbus_read_warning_status();
+    const char *warn_reason_str = "";
+    if (warning_raw != g_warning_status)
+    {
+      g_warning_status = warning_raw;
+
+      if (warning_raw != 0)
+      {
+        pmbus_warning_reason_t warn_reason;
+        pmbus_decode_warning_status(warning_raw, &warn_reason);
+        warn_reason_str = pmbus_get_warning_reason_string(&warn_reason);
+        ui_show_warning_popup(warn_reason_str);
+        ui_set_warning_icon_visible(true);
+        beep_set_warning_active(true);
+        Serial.printf("Power warning detected: 0x%04X (%s)\n", warning_raw, warn_reason_str);
+      }
+      else
+      {
+        ui_set_warning_icon_visible(false);
+        beep_set_warning_active(false);
+        Serial.println("Power warning cleared");
+      }
+    }
+    else if (warning_raw != 0)
+    {
+      // Persist the reason string for web even when popup already shown
+      pmbus_warning_reason_t warn_reason;
+      pmbus_decode_warning_status(warning_raw, &warn_reason);
+      warn_reason_str = pmbus_get_warning_reason_string(&warn_reason);
+    }
+
+    // ── LED status ──
+    const bool has_fault = (shutdown_raw != 0);
+    const bool has_warning = (warning_raw != 0);
+    led_update_power_status(g_pmbus_data.voltage_out_v, has_fault, has_warning);
+
+    // Forward power status to web portal
+    {
+      pmbus_shutdown_reason_t sd_reason;
+      pmbus_decode_shutdown_status(shutdown_raw, &sd_reason);
+      wifi_portal_set_power_status(shutdown_raw, warning_raw,
+                                   pmbus_get_shutdown_reason_string(&sd_reason),
+                                   warn_reason_str);
+    }
   }
 
   static uint32_t start_ms = millis();
   const uint32_t elapsed_seconds = (millis() - start_ms) / 1000U;
   ui_update_work_time(elapsed_seconds);
 
+  ui_warning_task();
   wifi_portal_task();
   espnow_bridge_task();
   ble_server_task();

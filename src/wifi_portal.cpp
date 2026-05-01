@@ -20,6 +20,10 @@ Preferences g_prefs;
 pmbus_data_t g_latest_data = {};
 pmbus_setup_info_t g_setup_info = {};
 c3_sensor_data_t g_c3_data = {};
+uint16_t g_shutdown_status = 0;
+uint16_t g_warning_status = 0;
+String g_shutdown_reason;
+String g_warning_reason;
 
 String g_ap_ssid = kDefaultApSsid;
 String g_ap_pass = kDefaultApPass;
@@ -232,6 +236,18 @@ String html_page()
     .fan-row { display: flex; align-items: center; gap: 10px; }
     .fan-row input { flex: 1; }
 
+    /* ── Alert Banners ── */
+    .alert { display: none; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px; font-weight: 500; align-items: center; gap: 10px; }
+    .alert.show { display: flex; }
+    .alert-danger  { background: rgba(248,81,73,0.15); border: 1px solid var(--red); color: var(--red); }
+    .alert-warning { background: rgba(210,153,29,0.12); border: 1px solid var(--yellow); color: var(--yellow); }
+    .alert .alert-icon { font-size: 20px; flex-shrink: 0; }
+    .alert .alert-body { flex: 1; }
+    .alert .alert-title { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+    .alert .alert-detail { font-size: 12px; color: var(--muted); }
+    .alert .alert-close { cursor: pointer; font-size: 18px; color: var(--muted); background: none; border: 0; padding: 0 4px; margin: 0; }
+    .alert .alert-close:hover { color: var(--text); }
+
     /* ── Responsive ── */
     @media (max-width: 640px) {
       body { padding: 8px; }
@@ -256,6 +272,23 @@ String html_page()
       <div style="font-size:15px;font-weight:600;" id="outputStatus">
         <span class="status-dot green"></span> ON
       </div>
+    </div>
+  </div>
+
+  <!-- ALERTS -->
+  <div class="alert alert-danger" id="shutdownAlert">
+    <span class="alert-icon">&#x26D4;</span>
+    <div class="alert-body">
+      <div class="alert-title">Power Abnormal Shutdown</div>
+      <div class="alert-detail" id="shutdownDetail">-</div>
+    </div>
+    <button class="alert-close" onclick="return confirm('Dismiss this alert?') && (document.getElementById('shutdownAlert').classList.remove('show'), false);">&#x2715;</button>
+  </div>
+  <div class="alert alert-warning" id="warningAlert">
+    <span class="alert-icon">&#x26A0;</span>
+    <div class="alert-body">
+      <div class="alert-title">Power Warning</div>
+      <div class="alert-detail" id="warningDetail">-</div>
     </div>
   </div>
 
@@ -652,6 +685,23 @@ String html_page()
           'Output: ' + (j.output_enabled ? 'ON' : 'OFF') +
           ' | Force: ' + (j.force_enabled ? 'Enabled' : 'Forced Off');
 
+        // ── Alerts ──
+        const shutdownAlert = document.getElementById('shutdownAlert');
+        if (j.shutdown_status && j.shutdown_status !== 0) {
+          shutdownAlert.classList.add('show');
+          document.getElementById('shutdownDetail').textContent =
+            'Reason: ' + (j.shutdown_reason || 'Unknown') + ' (0x' + j.shutdown_status.toString(16).toUpperCase().padStart(4, '0') + ')';
+        }
+
+        const warningAlert = document.getElementById('warningAlert');
+        if (j.warning_status && j.warning_status !== 0) {
+          warningAlert.classList.add('show');
+          document.getElementById('warningDetail').textContent =
+            'Reason: ' + (j.warning_reason || 'Unknown') + ' (0x' + j.warning_status.toString(16).toUpperCase().padStart(4, '0') + ')';
+        } else {
+          warningAlert.classList.remove('show');
+        }
+
         // Sync inputs (preserve dirty edits)
         syncInput('staSsid', j.sta_ssid, pending.staSsid);
         syncInput('apSsid', j.ap_ssid, pending.apSsid);
@@ -968,7 +1018,11 @@ void handle_status()
   payload += "\"c3_current_a\":" + String(g_c3_data.valid ? g_c3_data.current_a : 0.0f, 3) + ",";
   payload += "\"c3_power_w\":"   + String(g_c3_data.valid ? g_c3_data.power_w   : 0.0f, 2) + ",";
   payload += "\"c3_sequence\":"  + String(g_c3_data.sequence) + ",";
-  payload += "\"c3_online\":"    + String(g_c3_data.valid ? "true" : "false");
+  payload += "\"c3_online\":"    + String(g_c3_data.valid ? "true" : "false") + ",";
+  payload += "\"shutdown_status\":" + String(g_shutdown_status) + ",";
+  payload += "\"shutdown_reason\":\"" + json_escape(g_shutdown_reason) + "\",";
+  payload += "\"warning_status\":" + String(g_warning_status) + ",";
+  payload += "\"warning_reason\":\"" + json_escape(g_warning_reason) + "\"";
   payload += "}";
 
   g_server.send(200, "application/json", payload);
@@ -1287,6 +1341,14 @@ void wifi_portal_set_c3_data(const c3_sensor_data_t *data)
     return;
   }
   g_c3_data = *data;
+}
+
+void wifi_portal_set_power_status(uint16_t shutdown_status, uint16_t warning_status, const char *shutdown_reason, const char *warning_reason)
+{
+  g_shutdown_status = shutdown_status;
+  g_warning_status = warning_status;
+  g_shutdown_reason = shutdown_reason ? shutdown_reason : "";
+  g_warning_reason = warning_reason ? warning_reason : "";
 }
 
 void wifi_portal_start()

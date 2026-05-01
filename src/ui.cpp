@@ -16,6 +16,7 @@ extern "C"
 #include "../UI/screens/ui_Screen4.h"
 extern const lv_img_dsc_t ui_img_546246141;
 extern const lv_img_dsc_t ui_img_808252844;
+extern const lv_font_t ui_font_bold16;
 }
 
 static lv_group_t *g_screen1_group = NULL;
@@ -522,6 +523,273 @@ static void show_force_off_popup()
 	}
 }
 
+// ── Shutdown popup (dismiss with SWITCH_ENTER) ──
+static lv_obj_t *g_shutdown_popup = NULL;
+static lv_obj_t *g_shutdown_popup_label = NULL;
+static lv_group_t *g_shutdown_popup_group = NULL;
+
+static void close_shutdown_popup()
+{
+	if (g_shutdown_popup_group != NULL)
+	{
+		lv_group_del(g_shutdown_popup_group);
+		g_shutdown_popup_group = NULL;
+	}
+	if (g_shutdown_popup != NULL)
+	{
+		lv_obj_del_async(g_shutdown_popup);
+		g_shutdown_popup = NULL;
+		g_shutdown_popup_label = NULL;
+	}
+	// Restore previous active group
+	set_active_group(g_active_group);
+}
+
+static void on_shutdown_popup_click(lv_event_t *e)
+{
+	if (lv_event_get_code(e) != LV_EVENT_CLICKED)
+	{
+		return;
+	}
+	close_shutdown_popup();
+}
+
+void ui_show_shutdown_popup(const char *reason)
+{
+	if (g_shutdown_popup != NULL)
+	{
+		// Already showing, update reason text
+		if (g_shutdown_popup_label != NULL && reason != NULL && reason[0] != '\0')
+		{
+			set_label_text_if_changed(g_shutdown_popup_label, reason);
+		}
+		return;
+	}
+
+	lv_obj_t *parent = lv_layer_top();
+	g_shutdown_popup = lv_obj_create(parent);
+	lv_obj_set_size(g_shutdown_popup, 200, 100);
+	lv_obj_center(g_shutdown_popup);
+	lv_obj_clear_flag(g_shutdown_popup, LV_OBJ_FLAG_SCROLLABLE);
+	lv_obj_add_flag(g_shutdown_popup, LV_OBJ_FLAG_CLICKABLE);
+	lv_obj_set_style_bg_color(g_shutdown_popup, lv_color_hex(0x1A1A1A), LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_bg_opa(g_shutdown_popup, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_border_color(g_shutdown_popup, lv_color_hex(0xFF4444), LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_border_width(g_shutdown_popup, 3, LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_radius(g_shutdown_popup, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+	// Title label
+	lv_obj_t *title = lv_label_create(g_shutdown_popup);
+	lv_label_set_text(title, "Power Abnormal Shutdown");
+	lv_obj_set_style_text_color(title, lv_color_hex(0xFF4444), LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_text_font(title, &ui_font_bold16, LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 8);
+
+	// Reason label
+	g_shutdown_popup_label = lv_label_create(g_shutdown_popup);
+	const char *text = (reason != NULL && reason[0] != '\0') ? reason : "Unknown";
+	lv_label_set_text(g_shutdown_popup_label, text);
+	lv_obj_set_style_text_color(g_shutdown_popup_label, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_text_font(g_shutdown_popup_label, &ui_font_bold16, LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_align(g_shutdown_popup_label, LV_ALIGN_CENTER, 0, 6);
+
+	// Dismiss hint
+	lv_obj_t *hint = lv_label_create(g_shutdown_popup);
+	lv_label_set_text(hint, "[ENTER] to dismiss");
+	lv_obj_set_style_text_color(hint, lv_color_hex(0x888888), LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -6);
+
+	// Create a group for the popup so it can receive key events
+	g_shutdown_popup_group = lv_group_create();
+	lv_group_add_obj(g_shutdown_popup_group, g_shutdown_popup);
+	lv_group_set_default(g_shutdown_popup_group);
+
+	lv_indev_t *keypad_indev = get_keypad_indev();
+	if (keypad_indev != NULL)
+	{
+		lv_indev_set_group(keypad_indev, g_shutdown_popup_group);
+	}
+
+	lv_obj_add_event_cb(g_shutdown_popup, on_shutdown_popup_click, LV_EVENT_CLICKED, NULL);
+
+	Serial.printf("UI: shutdown popup shown, reason=%s\n", text);
+}
+
+void ui_dismiss_shutdown_popup()
+{
+	if (g_shutdown_popup != NULL)
+	{
+		close_shutdown_popup();
+	}
+}
+
+// ── Warning popup (10s auto-dismiss) ──
+static lv_obj_t *g_warning_popup = NULL;
+static lv_obj_t *g_warning_popup_label = NULL;
+static lv_timer_t *g_warning_popup_timer = NULL;
+static lv_group_t *g_warning_popup_group = NULL;
+
+static void close_warning_popup()
+{
+	if (g_warning_popup_timer != NULL)
+	{
+		lv_timer_del(g_warning_popup_timer);
+		g_warning_popup_timer = NULL;
+	}
+	if (g_warning_popup_group != NULL)
+	{
+		lv_group_del(g_warning_popup_group);
+		g_warning_popup_group = NULL;
+	}
+	if (g_warning_popup != NULL)
+	{
+		lv_obj_del_async(g_warning_popup);
+		g_warning_popup = NULL;
+		g_warning_popup_label = NULL;
+	}
+	set_active_group(g_active_group);
+}
+
+static void warning_popup_timer_cb(lv_timer_t *timer)
+{
+	close_warning_popup();
+}
+
+static void on_warning_popup_click(lv_event_t *e)
+{
+	if (lv_event_get_code(e) != LV_EVENT_CLICKED)
+	{
+		return;
+	}
+	close_warning_popup();
+}
+
+void ui_show_warning_popup(const char *reason)
+{
+	if (g_warning_popup != NULL)
+	{
+		// Already showing, reset timer and update reason
+		if (g_warning_popup_timer != NULL)
+		{
+			lv_timer_reset(g_warning_popup_timer);
+		}
+		if (g_warning_popup_label != NULL && reason != NULL && reason[0] != '\0')
+		{
+			set_label_text_if_changed(g_warning_popup_label, reason);
+		}
+		return;
+	}
+
+	lv_obj_t *parent = lv_layer_top();
+	g_warning_popup = lv_obj_create(parent);
+	lv_obj_set_size(g_warning_popup, 200, 100);
+	lv_obj_center(g_warning_popup);
+	lv_obj_clear_flag(g_warning_popup, LV_OBJ_FLAG_SCROLLABLE);
+	lv_obj_add_flag(g_warning_popup, LV_OBJ_FLAG_CLICKABLE);
+	lv_obj_set_style_bg_color(g_warning_popup, lv_color_hex(0x1A1A1A), LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_bg_opa(g_warning_popup, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_border_color(g_warning_popup, lv_color_hex(0xF0A020), LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_border_width(g_warning_popup, 3, LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_radius(g_warning_popup, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+	// Title label
+	lv_obj_t *title = lv_label_create(g_warning_popup);
+	lv_label_set_text(title, "Power Warning");
+	lv_obj_set_style_text_color(title, lv_color_hex(0xF0A020), LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_text_font(title, &ui_font_bold16, LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 8);
+
+	// Reason label
+	g_warning_popup_label = lv_label_create(g_warning_popup);
+	const char *text = (reason != NULL && reason[0] != '\0') ? reason : "Unknown";
+	lv_label_set_text(g_warning_popup_label, text);
+	lv_obj_set_style_text_color(g_warning_popup_label, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_set_style_text_font(g_warning_popup_label, &ui_font_bold16, LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_align(g_warning_popup_label, LV_ALIGN_CENTER, 0, 6);
+
+	// Dismiss hint
+	lv_obj_t *hint = lv_label_create(g_warning_popup);
+	lv_label_set_text(hint, "Auto-dismiss in 10s");
+	lv_obj_set_style_text_color(hint, lv_color_hex(0x888888), LV_PART_MAIN | LV_STATE_DEFAULT);
+	lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -6);
+
+	// Create a group for the popup so it can receive key events
+	g_warning_popup_group = lv_group_create();
+	lv_group_add_obj(g_warning_popup_group, g_warning_popup);
+	lv_group_set_default(g_warning_popup_group);
+
+	lv_indev_t *keypad_indev = get_keypad_indev();
+	if (keypad_indev != NULL)
+	{
+		lv_indev_set_group(keypad_indev, g_warning_popup_group);
+	}
+
+	lv_obj_add_event_cb(g_warning_popup, on_warning_popup_click, LV_EVENT_CLICKED, NULL);
+
+	// Auto-dismiss after 10 seconds
+	g_warning_popup_timer = lv_timer_create(warning_popup_timer_cb, 10000, NULL);
+	lv_timer_set_repeat_count(g_warning_popup_timer, 1);
+
+	Serial.printf("UI: warning popup shown, reason=%s\n", text);
+}
+
+// ── Warning icon control ──
+static lv_timer_t *g_warning_icon_timer = NULL;
+static bool g_warning_icon_visible = false;
+
+static void warning_icon_timer_cb(lv_timer_t *timer)
+{
+	if (ui_warning == NULL)
+	{
+		return;
+	}
+
+	if (g_warning_icon_visible)
+	{
+		lv_obj_add_flag(ui_warning, LV_OBJ_FLAG_HIDDEN);
+		g_warning_icon_visible = false;
+	}
+	else
+	{
+		lv_obj_clear_flag(ui_warning, LV_OBJ_FLAG_HIDDEN);
+		g_warning_icon_visible = true;
+	}
+}
+
+void ui_set_warning_icon_visible(bool visible)
+{
+	if (ui_warning == NULL)
+	{
+		return;
+	}
+
+	if (visible)
+	{
+		// Start flashing timer if not already running
+		if (g_warning_icon_timer == NULL)
+		{
+			g_warning_icon_timer = lv_timer_create(warning_icon_timer_cb, 500, NULL);
+			lv_timer_set_repeat_count(g_warning_icon_timer, -1);
+		}
+	}
+	else
+	{
+		// Stop timer and hide icon
+		if (g_warning_icon_timer != NULL)
+		{
+			lv_timer_del(g_warning_icon_timer);
+			g_warning_icon_timer = NULL;
+		}
+		lv_obj_add_flag(ui_warning, LV_OBJ_FLAG_HIDDEN);
+		g_warning_icon_visible = false;
+	}
+}
+
+void ui_warning_task()
+{
+	// No periodic work needed currently; timers handle auto-dismiss and flashing.
+}
+
 static void sync_pson_switch_from_power_ctrl()
 {
 	if (ui_PSONSwitch == NULL)
@@ -821,6 +1089,12 @@ void ui_init()
 	if (ui_screenReduce != NULL)
 	{
 		lv_obj_add_event_cb(ui_screenReduce, on_rotate_reduce, LV_EVENT_CLICKED, NULL);
+	}
+
+	// Hide warning icon initially (shown only when warning is active)
+	if (ui_warning != NULL)
+	{
+		lv_obj_add_flag(ui_warning, LV_OBJ_FLAG_HIDDEN);
 	}
 
 	lv_disp_load_scr(ui_Screen1);

@@ -54,3 +54,36 @@ uint8_t led_get_brightness(uint8_t led_index)
 
   return g_led_brightness[led_index];
 }
+
+void led_set_red(bool on)
+{
+  led_set_brightness(0, on ? 255 : 0);
+}
+
+void led_set_green(bool on)
+{
+  led_set_brightness(1, on ? 255 : 0);
+}
+
+void led_update_power_status(float output_voltage_v, bool has_fault, bool has_warning)
+{
+  // Fault / warning takes priority — red LED
+  if (has_fault || has_warning)
+  {
+    led_set_red(true);
+    led_set_green(false);
+    return;
+  }
+
+  // Output voltage in normal range 11.5V – 12.5V → green
+  if (output_voltage_v >= 11.5f && output_voltage_v <= 12.5f)
+  {
+    led_set_red(false);
+    led_set_green(true);
+    return;
+  }
+
+  // Output absent or out of range → both off
+  led_set_red(false);
+  led_set_green(false);
+}

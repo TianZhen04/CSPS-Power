@@ -20,6 +20,8 @@ bool beep_enabled();
 
 void beep_play_power_on();
 void beep_play_power_off();
+void beep_play_shutdown_alert();
+void beep_set_warning_active(bool active);
 void beep_task();
 
 #endif

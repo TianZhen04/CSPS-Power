@@ -272,6 +272,85 @@ bool pmbus_set_fan_rpm(uint16_t rpm)
   return pmbus_write_u16(0x40, rpm);
 }
 
+uint16_t pmbus_read_shutdown_status()
+{
+  return pmbus_read_u16_or_zero(0x04);
+}
+
+void pmbus_decode_shutdown_status(uint16_t raw, struct pmbus_shutdown_reason_t *out)
+{
+  if (out == nullptr)
+  {
+    return;
+  }
+
+  out->ps_failure   = (raw & (1U << 0)) != 0;
+  out->over_voltage = (raw & (1U << 1)) != 0;
+  out->over_current = (raw & (1U << 2)) != 0;
+  out->over_temp    = (raw & (1U << 3)) != 0;
+  out->input_loss   = (raw & (1U << 4)) != 0;
+  out->reserved5    = (raw & (1U << 5)) != 0;
+  out->fan1_failure = (raw & (1U << 6)) != 0;
+  out->reserved     = static_cast<uint16_t>((raw >> 7) & 0x1FFU);
+}
+
+const char *pmbus_get_shutdown_reason_string(const struct pmbus_shutdown_reason_t *reason)
+{
+  if (reason == nullptr)
+  {
+    return "";
+  }
+
+  if (reason->ps_failure)   return "PS Failure";
+  if (reason->over_voltage) return "Over Voltage";
+  if (reason->over_current) return "Over Current";
+  if (reason->over_temp)    return "Over Temperature";
+  if (reason->input_loss)   return "Input Loss";
+  if (reason->fan1_failure) return "Fan1 Failure";
+  return "";
+}
+
+uint16_t pmbus_read_warning_status()
+{
+  return pmbus_read_u16_or_zero(0x06);
+}
+
+void pmbus_decode_warning_status(uint16_t raw, struct pmbus_warning_reason_t *out)
+{
+  if (out == nullptr)
+  {
+    return;
+  }
+
+  out->vin_high           = (raw & (1U << 0)) != 0;
+  out->vin_low            = (raw & (1U << 1)) != 0;
+  out->vout_high          = (raw & (1U << 2)) != 0;
+  out->vout_low           = (raw & (1U << 3)) != 0;
+  out->inlet_temp_high    = (raw & (1U << 4)) != 0;
+  out->internal_temp_high = (raw & (1U << 5)) != 0;
+  out->vaux_high          = (raw & (1U << 6)) != 0;
+  out->vaux_low           = (raw & (1U << 7)) != 0;
+  out->reserved           = static_cast<uint16_t>((raw >> 8) & 0xFFU);
+}
+
+const char *pmbus_get_warning_reason_string(const struct pmbus_warning_reason_t *reason)
+{
+  if (reason == nullptr)
+  {
+    return "";
+  }
+
+  if (reason->vin_high)            return "Vin High";
+  if (reason->vin_low)             return "Vin Low";
+  if (reason->vout_high)           return "Vout High";
+  if (reason->vout_low)            return "Vout Low";
+  if (reason->inlet_temp_high)     return "Inlet Temp High";
+  if (reason->internal_temp_high)  return "Internal Temp High";
+  if (reason->vaux_high)           return "Vaux High";
+  if (reason->vaux_low)            return "Vaux Low";
+  return "";
+}
+
 bool pmbus_update_data(struct pmbus_data_t *data)
 {
   if (data == nullptr)
