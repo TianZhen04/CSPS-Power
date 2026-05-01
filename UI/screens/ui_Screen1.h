@@ -52,6 +52,7 @@ extern lv_obj_t * ui_temp1;
 extern lv_obj_t * ui_temp2;
 extern lv_obj_t * ui_sheshidu2;
 extern lv_obj_t * ui_sheshidu3;
+extern lv_obj_t * ui_warning;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus

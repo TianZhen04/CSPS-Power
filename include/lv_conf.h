@@ -15,8 +15,8 @@
 
 /* Default font */
 #define LV_FONT_MONTSERRAT_14 1
-#define LV_FONT_MONTSERRAT_16 1
-#define LV_FONT_MONTSERRAT_20 1
+#define LV_FONT_MONTSERRAT_16 0
+#define LV_FONT_MONTSERRAT_20 0
 
 /* Enable float formatting in lv_snprintf, required by UI labels using %f. */
 #define LV_SPRINTF_USE_FLOAT 1

@@ -6,6 +6,7 @@ SET(SOURCES screens/ui_Screen1.c
     components/ui_comp_hook.c
     ui_helpers.c
     images/ui_img_546246141.c
+    images/ui_img_1533918671.c
     images/ui_img_808252844.c
     images/ui_img_1177623285.c
     images/ui_img_1259645767.c

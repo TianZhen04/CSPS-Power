@@ -1,5 +1,6 @@
 #include <power_ctrl.h>
 #include <Preferences.h>
+#include <beep.h>
 
 namespace
 {
@@ -11,6 +12,7 @@ static constexpr const char *kForceEnabledKey = "force_on";
 bool g_software_enabled = false;
 bool g_force_enabled = true;
 bool g_hw_available = true;
+bool g_output_was_on = false;
 Preferences g_power_prefs;
 bool g_power_prefs_ready = false;
 
@@ -35,6 +37,16 @@ void apply_output_state()
   // HIGH releases the line and lets the external pull-up turn power off.
   const bool output_on = g_software_enabled && g_force_enabled;
   digitalWrite(POWER_SOFTWARE_SWITCH_PIN, output_on ? LOW : HIGH);
+
+  if (output_on && !g_output_was_on)
+  {
+    beep_play_power_on();
+  }
+  else if (!output_on && g_output_was_on)
+  {
+    beep_play_power_off();
+  }
+  g_output_was_on = output_on;
 }
 
 void apply_force_state()

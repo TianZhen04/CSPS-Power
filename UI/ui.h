@@ -32,6 +32,7 @@ extern lv_obj_t * ui____initial_actions0;
 
 // IMAGES AND IMAGE SETS
 LV_IMG_DECLARE(ui_img_546246141);    // assets/wifi-off-line.png
+LV_IMG_DECLARE(ui_img_1533918671);    // assets/警告.png
 LV_IMG_DECLARE(ui_img_808252844);    // assets/wifi-fill.png
 LV_IMG_DECLARE(ui_img_1177623285);    // assets/系统.png
 LV_IMG_DECLARE(ui_img_1259645767);    // assets/电源适配器.png

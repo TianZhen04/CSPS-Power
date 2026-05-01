@@ -5,8 +5,8 @@
 #include <stdint.h>
 
 // 要更改
-static constexpr int kPmbusSclPin = 4;
-static constexpr int kPmbusSdaPin = 5;
+static constexpr int kPmbusSclPin = 42;
+static constexpr int kPmbusSdaPin = 41;
 
 struct pmbus_data_t
 {

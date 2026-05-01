@@ -815,8 +815,8 @@ String html_page()
       drawSparkline('c3Spark', rings.c3V, rings.c3A, rings.c3W);
     }
 
-    setInterval(simRefresh, 1000);
-    simRefresh();
+    setInterval(refresh, 1000);
+    refresh();
   </script>
 
 </body>

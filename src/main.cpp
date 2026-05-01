@@ -131,5 +131,6 @@ void loop()
   wifi_portal_task();
   espnow_bridge_task();
   ble_server_task();
+  beep_task();
   display_task_handler();
 }
