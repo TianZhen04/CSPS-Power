@@ -1227,19 +1227,47 @@ void ui_update_power_data(const pmbus_data_t *data)
 	lv_snprintf(buf, sizeof(buf), "%05.1fV", static_cast<double>(data->voltage_in_v));
 	lv_label_set_text(ui_inputVoltage, buf);
 
-	lv_snprintf(buf, sizeof(buf), "%05.2fA", static_cast<double>(data->current_in_a));
+	if (data->current_in_a < 0.25f)
+	{
+		lv_snprintf(buf, sizeof(buf), "<0.25A");
+	}
+	else
+	{
+		lv_snprintf(buf, sizeof(buf), "%05.2fA", static_cast<double>(data->current_in_a));
+	}
 	lv_label_set_text(ui_inputCurrent, buf);
 
-	lv_snprintf(buf, sizeof(buf), "%05.1fW", static_cast<double>(data->power_in_w));
+	if (data->power_in_w < 20.0f)
+	{
+		lv_snprintf(buf, sizeof(buf), "<20W");
+	}
+	else
+	{
+		lv_snprintf(buf, sizeof(buf), "%05.1fW", static_cast<double>(data->power_in_w));
+	}
 	lv_label_set_text(ui_inputPower, buf);
 
 	lv_snprintf(buf, sizeof(buf), "%05.2fV", static_cast<double>(data->voltage_out_v));
 	lv_label_set_text(ui_outputVoltage, buf);
 
-	lv_snprintf(buf, sizeof(buf), "%05.2fA", static_cast<double>(data->current_out_a));
+	if (data->current_out_a < 3.0f)
+	{
+		lv_snprintf(buf, sizeof(buf), "<3A");
+	}
+	else
+	{
+		lv_snprintf(buf, sizeof(buf), "%05.2fA", static_cast<double>(data->current_out_a));
+	}
 	lv_label_set_text(ui_outputCurrent, buf);
 
-	lv_snprintf(buf, sizeof(buf), "%05.1fW", static_cast<double>(data->power_out_w));
+	if (data->power_out_w < 36.0f)
+	{
+		lv_snprintf(buf, sizeof(buf), "<36W");
+	}
+	else
+	{
+		lv_snprintf(buf, sizeof(buf), "%05.1fW", static_cast<double>(data->power_out_w));
+	}
 	lv_label_set_text(ui_outputPower, buf);
 
 	lv_snprintf(buf, sizeof(buf), "效率:%05.2f%%", static_cast<double>(data->efficiency_percent));

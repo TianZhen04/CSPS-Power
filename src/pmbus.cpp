@@ -408,6 +408,16 @@ bool pmbus_update_data(struct pmbus_data_t *data)
     data->power_in_w = 0.0f;
   }
 
+  if (pmbus_read_u16(0x12, &raw))
+  {
+    data->power_out_w = static_cast<float>(raw);
+    any_valid = true;
+  }
+  else
+  {
+    data->power_out_w = 0.0f;
+  }
+
   if (pmbus_read_u16(0x10, &raw))
   {
     data->current_out_a = static_cast<float>(raw) / 64.0f;
@@ -448,8 +458,6 @@ bool pmbus_update_data(struct pmbus_data_t *data)
     data->voltage_in_v = 0.0f;
   }
 
-  // Keep the same behavior as CSPS main.hpp update: Vout * Iout.
-  data->power_out_w = data->current_out_a * data->voltage_out_v;
   if (data->power_in_w > 0.001f)
   {
     data->efficiency_percent = (data->power_out_w / data->power_in_w) * 100.0f;

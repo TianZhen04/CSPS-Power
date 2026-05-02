@@ -609,13 +609,21 @@ String html_page()
         const r = await fetch('/api/status');
         const j = await r.json();
 
+        // Threshold-aware helpers
+        function fmtCurrent(value, threshold, unit) {
+          return value < threshold ? '<' + threshold.toFixed(2) + unit : value.toFixed(2) + unit;
+        }
+        function fmtPower(value, threshold, unit) {
+          return value < threshold ? '<' + threshold.toFixed(0) + unit : value.toFixed(1) + unit;
+        }
+
         // Metrics
         document.getElementById('vin').textContent = j.voltage_in_v.toFixed(2);
-        document.getElementById('iin').textContent = j.current_in_a.toFixed(2);
-        document.getElementById('pin').textContent = j.power_in_w.toFixed(1);
+        document.getElementById('iin').textContent = fmtCurrent(j.current_in_a, 0.25, '');
+        document.getElementById('pin').textContent = fmtPower(j.power_in_w, 20, '');
         document.getElementById('vout').textContent = j.voltage_out_v.toFixed(2);
-        document.getElementById('iout').textContent = j.current_out_a.toFixed(2);
-        document.getElementById('pout').textContent = j.power_out_w.toFixed(1);
+        document.getElementById('iout').textContent = fmtCurrent(j.current_out_a, 3, '');
+        document.getElementById('pout').textContent = fmtPower(j.power_out_w, 36, '');
         document.getElementById('temp1').textContent = j.temp1_c.toFixed(1);
         document.getElementById('temp2').textContent = j.temp2_c.toFixed(1);
         document.getElementById('fan').textContent = Math.round(j.fan_speed_rpm);
