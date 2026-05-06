@@ -1247,7 +1247,7 @@ void handle_fan_post()
 void handle_history()
 {
   String payload;
-  payload.reserve(5120);
+  payload.reserve(6144);
   payload += "{\"count\":" + String(g_history_count) + ",";
 
   const size_t start = (g_history_head + kHistoryMaxSamples - g_history_count) % kHistoryMaxSamples;
@@ -1289,16 +1289,16 @@ void handle_history()
     }
   } w{payload, g_history, start, g_history_count};
 
-  w.float_array("inV",  false, &history_sample_t::voltage_in_v);
-  w.float_array("inA",  false, &history_sample_t::current_in_a);
-  w.float_array("inW",  false, &history_sample_t::power_in_w);
+  w.float_array("inV", false, &history_sample_t::voltage_in_v);
+  w.float_array("inA", false, &history_sample_t::current_in_a);
+  w.float_array("inW", false, &history_sample_t::power_in_w);
   w.float_array("outV", false, &history_sample_t::voltage_out_v);
   w.float_array("outA", false, &history_sample_t::current_out_a);
   w.float_array("outW", false, &history_sample_t::power_out_w);
-  w.float_array("c3V",  false, &history_sample_t::c3_voltage_v);
-  w.float_array("c3A",  false, &history_sample_t::c3_current_a);
-  w.float_array("c3W",  false, &history_sample_t::c3_power_w);
-  w.bool_array ("c3ok", true,  &history_sample_t::c3_valid);
+  w.float_array("c3V", false, &history_sample_t::c3_voltage_v);
+  w.float_array("c3A", false, &history_sample_t::c3_current_a);
+  w.float_array("c3W", false, &history_sample_t::c3_power_w);
+  w.bool_array("c3ok", true, &history_sample_t::c3_valid);
 
   payload += "}";
   g_server.send(200, "application/json", payload);

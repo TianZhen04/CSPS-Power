@@ -469,6 +469,7 @@ bool pmbus_update_data(struct pmbus_data_t *data)
 
   {
     uint16_t rt = 0;
+    // Register 0x30: READ_RUN_TIME - cumulative PSU runtime in hours
     if (pmbus_read_u16(0x30, &rt))
     {
       data->psu_runtime_hours = static_cast<uint32_t>(rt);
