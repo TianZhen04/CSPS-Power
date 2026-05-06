@@ -26,7 +26,8 @@ static pmbus_data_t g_pmbus_data = {
   0.0f,  // current_in_a
   0.0f,  // voltage_out_v
   0.0f,  // voltage_in_v
-  0.0f   // efficiency_percent
+  0.0f,  // efficiency_percent
+  0U     // psu_runtime_hours
 };
 static pmbus_setup_info_t g_pmbus_setup_info = {};
 
@@ -120,6 +121,7 @@ void loop()
     if (ntc_temp_read_c(&ntc_temp_c))
     {
       ui_set_board_temp(ntc_temp_c);
+      wifi_portal_set_board_temp(ntc_temp_c);
     }
 
     ui_update_power_data(&g_pmbus_data);

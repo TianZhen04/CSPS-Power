@@ -467,6 +467,18 @@ bool pmbus_update_data(struct pmbus_data_t *data)
     data->efficiency_percent = 0.0f;
   }
 
+  {
+    uint16_t rt = 0;
+    if (pmbus_read_u16(0x30, &rt))
+    {
+      data->psu_runtime_hours = static_cast<uint32_t>(rt);
+    }
+    else
+    {
+      data->psu_runtime_hours = 0;
+    }
+  }
+
   return any_valid;
 }
 

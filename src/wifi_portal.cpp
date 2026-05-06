@@ -24,6 +24,27 @@ uint16_t g_shutdown_status = 0;
 uint16_t g_warning_status = 0;
 String g_shutdown_reason;
 String g_warning_reason;
+float g_board_temp_c = 0.0f;
+
+static constexpr size_t kHistoryMaxSamples = 60;
+
+struct history_sample_t
+{
+  float voltage_in_v;
+  float current_in_a;
+  float power_in_w;
+  float voltage_out_v;
+  float current_out_a;
+  float power_out_w;
+  float c3_voltage_v;
+  float c3_current_a;
+  float c3_power_w;
+  bool c3_valid;
+};
+
+history_sample_t g_history[kHistoryMaxSamples] = {};
+size_t g_history_head = 0;
+size_t g_history_count = 0;
 
 String g_ap_ssid = kDefaultApSsid;
 String g_ap_pass = kDefaultApPass;
@@ -397,6 +418,11 @@ String html_page()
           <div class="gauge-val" id="effPct" style="color:var(--green);">0%</div>
           <div class="gauge-label">Efficiency</div>
         </div>
+        <div class="gauge">
+          <svg viewBox="0 0 120 120"><circle class="bg-circle" cx="60" cy="60" r="52"/><circle class="fg-circle" id="boardTempGauge" cx="60" cy="60" r="52" stroke="var(--red)"/></svg>
+          <div class="gauge-val" id="boardTemp" style="color:var(--red);">0</div>
+          <div class="gauge-label">Board &deg;C</div>
+        </div>
       </div>
     </div>
 
@@ -409,6 +435,7 @@ String html_page()
       <div class="info-row"><span class="key">Power Name</span><span class="val" id="setupName">-</span></div>
       <div class="info-row"><span class="key">Option Kit No</span><span class="val" id="setupOkn">-</span></div>
       <div class="info-row"><span class="key">CT Date Codes</span><span class="val" id="setupCt">-</span></div>
+      <div class="info-row"><span class="key">PSU Run Time</span><span class="val" id="setupRuntime">-</span></div>
     </div>
   </div>
 
@@ -652,6 +679,8 @@ String html_page()
         setGauge('temp2Gauge', j.temp2_c, 120);
         setGauge('fanGauge', j.fan_speed_rpm, 17000);
         setGauge('effGauge', j.efficiency_percent, 100);
+        setGauge('boardTempGauge', j.board_temp_c, 120);
+        document.getElementById('boardTemp').textContent = j.board_temp_c.toFixed(1);
 
         // Remote Sensor (C3 via ESP-NOW)
         if (j.c3_online) {
@@ -673,6 +702,7 @@ String html_page()
         document.getElementById('setupName').textContent = j.setup_name || '-';
         document.getElementById('setupOkn').textContent = j.setup_okn || '-';
         document.getElementById('setupCt').textContent = j.setup_ct || '-';
+        document.getElementById('setupRuntime').textContent = j.psu_runtime_hours + ' h';
 
         // Connection
         document.getElementById('wifiInfo').textContent =
@@ -855,6 +885,9 @@ String html_page()
       setGauge('temp2Gauge', temp2, 120);
       setGauge('fanGauge', fanRpm, 17000);
       setGauge('effGauge', eff, 100);
+      const boardTemp = 35 + Math.sin(simTime * 0.04) * 5 + (Math.random() - 0.5) * 1;
+      document.getElementById('boardTemp').textContent = boardTemp.toFixed(1);
+      setGauge('boardTempGauge', boardTemp, 120);
 
       // Update device info with static data
       document.getElementById('setupSpn').textContent = 'SPN-12345';
@@ -863,6 +896,7 @@ String html_page()
       document.getElementById('setupName').textContent = 'DPS-750RB';
       document.getElementById('setupOkn').textContent = 'OK-001';
       document.getElementById('setupCt').textContent = '2406';
+      document.getElementById('setupRuntime').textContent = '1234 h';
       document.getElementById('wifiInfo').textContent = 'AP: CSPS-Power (192.168.4.1) | STA: MyWiFi (192.168.1.100)';
       document.getElementById('outputStatus').innerHTML = '<span class="status-dot green"></span> ON';
       document.getElementById('powerInfo').textContent = 'Output: ON | Force: Enabled';
@@ -873,8 +907,35 @@ String html_page()
       drawSparkline('c3Spark', rings.c3V, rings.c3A, rings.c3W);
     }
 
+    // ── Load server-side history to pre-populate sparklines ──
+    async function loadHistory() {
+      try {
+        const r = await fetch('/api/history');
+        const j = await r.json();
+        if (!j.count) return;
+        for (let i = 0; i < j.count; i++) {
+          ringPush(rings.inV, j.inV[i], MAX_SAMPLES);
+          ringPush(rings.inA, j.inA[i], MAX_SAMPLES);
+          ringPush(rings.inW, j.inW[i], MAX_SAMPLES);
+          ringPush(rings.outV, j.outV[i], MAX_SAMPLES);
+          ringPush(rings.outA, j.outA[i], MAX_SAMPLES);
+          ringPush(rings.outW, j.outW[i], MAX_SAMPLES);
+          if (j.c3ok[i]) {
+            ringPush(rings.c3V, j.c3V[i], MAX_SAMPLES);
+            ringPush(rings.c3A, j.c3A[i], MAX_SAMPLES);
+            ringPush(rings.c3W, j.c3W[i], MAX_SAMPLES);
+          }
+        }
+        drawSparkline('inputSpark', rings.inV, rings.inA, rings.inW);
+        drawSparkline('outputSpark', rings.outV, rings.outA, rings.outW);
+        drawSparkline('c3Spark', rings.c3V, rings.c3A, rings.c3W);
+      } catch (err) {
+        console.warn('history load failed', err);
+      }
+    }
+
     setInterval(refresh, 1000);
-    refresh();
+    loadHistory().then(refresh);
   </script>
 
 </body>
@@ -1022,6 +1083,8 @@ void handle_status()
   payload += "\"voltage_out_v\":" + String(g_latest_data.voltage_out_v, 3) + ",";
   payload += "\"voltage_in_v\":" + String(g_latest_data.voltage_in_v, 3) + ",";
   payload += "\"efficiency_percent\":" + String(g_latest_data.efficiency_percent, 2) + ",";
+  payload += "\"psu_runtime_hours\":" + String(g_latest_data.psu_runtime_hours) + ",";
+  payload += "\"board_temp_c\":" + String(g_board_temp_c, 2) + ",";
   payload += "\"c3_voltage_v\":" + String(g_c3_data.valid ? g_c3_data.voltage_v : 0.0f, 2) + ",";
   payload += "\"c3_current_a\":" + String(g_c3_data.valid ? g_c3_data.current_a : 0.0f, 3) + ",";
   payload += "\"c3_power_w\":"   + String(g_c3_data.valid ? g_c3_data.power_w   : 0.0f, 2) + ",";
@@ -1181,6 +1244,66 @@ void handle_fan_post()
   }
 }
 
+void handle_history()
+{
+  String payload;
+  payload.reserve(5120);
+  payload += "{\"count\":" + String(g_history_count) + ",";
+
+  const size_t start = (g_history_head + kHistoryMaxSamples - g_history_count) % kHistoryMaxSamples;
+
+  // Helper: append a named float array from the ring buffer
+  struct HistoryWriter
+  {
+    String &payload;
+    const history_sample_t *history;
+    size_t start;
+    size_t count;
+
+    void float_array(const char *key, bool is_last,
+                     float history_sample_t::*field) const
+    {
+      payload += "\""; payload += key; payload += "\":[";
+      for (size_t i = 0; i < count; ++i)
+      {
+        const size_t idx = (start + i) % kHistoryMaxSamples;
+        if (i > 0) payload += ",";
+        payload += String(history[idx].*field, 2);
+      }
+      payload += "]";
+      if (!is_last) payload += ",";
+    }
+
+    void bool_array(const char *key, bool is_last,
+                    bool history_sample_t::*field) const
+    {
+      payload += "\""; payload += key; payload += "\":[";
+      for (size_t i = 0; i < count; ++i)
+      {
+        const size_t idx = (start + i) % kHistoryMaxSamples;
+        if (i > 0) payload += ",";
+        payload += history[idx].*field ? "true" : "false";
+      }
+      payload += "]";
+      if (!is_last) payload += ",";
+    }
+  } w{payload, g_history, start, g_history_count};
+
+  w.float_array("inV",  false, &history_sample_t::voltage_in_v);
+  w.float_array("inA",  false, &history_sample_t::current_in_a);
+  w.float_array("inW",  false, &history_sample_t::power_in_w);
+  w.float_array("outV", false, &history_sample_t::voltage_out_v);
+  w.float_array("outA", false, &history_sample_t::current_out_a);
+  w.float_array("outW", false, &history_sample_t::power_out_w);
+  w.float_array("c3V",  false, &history_sample_t::c3_voltage_v);
+  w.float_array("c3A",  false, &history_sample_t::c3_current_a);
+  w.float_array("c3W",  false, &history_sample_t::c3_power_w);
+  w.bool_array ("c3ok", true,  &history_sample_t::c3_valid);
+
+  payload += "}";
+  g_server.send(200, "application/json", payload);
+}
+
 void handle_wifi_scan()
 {
   const int scan_state = WiFi.scanComplete();
@@ -1248,6 +1371,7 @@ void setup_routes()
   });
 
   g_server.on("/api/status", HTTP_GET, handle_status);
+  g_server.on("/api/history", HTTP_GET, handle_history);
   g_server.on("/api/scan", HTTP_GET, handle_wifi_scan);
   g_server.on("/api/wifi", HTTP_POST, handle_wifi_post);
   g_server.on("/api/display", HTTP_POST, handle_display_post);
@@ -1329,6 +1453,23 @@ void wifi_portal_set_latest_data(const pmbus_data_t *data)
     return;
   }
   g_latest_data = *data;
+
+  history_sample_t &s = g_history[g_history_head];
+  s.voltage_in_v  = data->voltage_in_v;
+  s.current_in_a  = data->current_in_a;
+  s.power_in_w    = data->power_in_w;
+  s.voltage_out_v = data->voltage_out_v;
+  s.current_out_a = data->current_out_a;
+  s.power_out_w   = data->power_out_w;
+  s.c3_voltage_v  = g_c3_data.valid ? g_c3_data.voltage_v : 0.0f;
+  s.c3_current_a  = g_c3_data.valid ? g_c3_data.current_a : 0.0f;
+  s.c3_power_w    = g_c3_data.valid ? g_c3_data.power_w   : 0.0f;
+  s.c3_valid      = g_c3_data.valid;
+  g_history_head  = (g_history_head + 1) % kHistoryMaxSamples;
+  if (g_history_count < kHistoryMaxSamples)
+  {
+    ++g_history_count;
+  }
 }
 
 void wifi_portal_set_setup_info(const pmbus_setup_info_t *info)
@@ -1357,6 +1498,11 @@ void wifi_portal_set_power_status(uint16_t shutdown_status, uint16_t warning_sta
   g_warning_status = warning_status;
   g_shutdown_reason = shutdown_reason ? shutdown_reason : "";
   g_warning_reason = warning_reason ? warning_reason : "";
+}
+
+void wifi_portal_set_board_temp(float board_temp_c)
+{
+  g_board_temp_c = board_temp_c;
 }
 
 void wifi_portal_start()

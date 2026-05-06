@@ -9,6 +9,7 @@ void wifi_portal_init();
 void wifi_portal_task();
 void wifi_portal_set_latest_data(const pmbus_data_t *data);
 void wifi_portal_set_setup_info(const pmbus_setup_info_t *info);
+void wifi_portal_set_board_temp(float board_temp_c);
 void wifi_portal_set_c3_data(const c3_sensor_data_t *data);
 void wifi_portal_set_power_status(uint16_t shutdown_status, uint16_t warning_status, const char *shutdown_reason, const char *warning_reason);
 

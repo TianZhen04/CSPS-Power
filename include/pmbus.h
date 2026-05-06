@@ -20,6 +20,7 @@ struct pmbus_data_t
 	float voltage_out_v;
 	float voltage_in_v;
 	float efficiency_percent;
+	uint32_t psu_runtime_hours;
 };
 
 struct pmbus_setup_info_t
